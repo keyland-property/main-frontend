@@ -1,4 +1,4 @@
-import { BadgeCheck, Building2, FileCheck2, Landmark, ShieldCheck } from "lucide-react";
+import { Building2, FileCheck2, Landmark, ShieldCheck } from "lucide-react";
 import PageHero from "./PageHero";
 
 const assurances = [
