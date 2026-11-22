@@ -1,0 +1,101 @@
+name: Deploy main frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "main-frontend/**"
+      - "main-frontend/.github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keyland-production-main-frontend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_STACK_NAME: ${{ vars.AWS_STACK_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate deployment configuration
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || { echo "::error::Production deployments must run from main."; exit 1; }
+          [[ -n "$AWS_REGION" && -n "$AWS_STACK_NAME" && -n "$AWS_ROLE_ARN" ]] || { echo "::error::Set AWS_REGION, AWS_STACK_NAME, and AWS_ROLE_ARN in the production environment."; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: main-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefix main-frontend
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy main frontend infrastructure
+        run: |
+          aws cloudformation deploy \
+            --template-file main-frontend/infra/template.yaml \
+            --stack-name "${AWS_STACK_NAME}-main" \
+            --region "$AWS_REGION" \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides Stage=production
+
+      - name: Read API URL and deployment targets
+        id: outputs
+        run: |
+          set -euo pipefail
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "$1" \
+              --query "Stacks[0].Outputs[?OutputKey=='$2'].OutputValue | [0]" \
+              --output text
+          }
+          api_url="$(get_output "${AWS_STACK_NAME}-backend" ApiBaseUrl)"
+          bucket="$(get_output "${AWS_STACK_NAME}-main" WebsiteBucketName)"
+          distribution="$(get_output "${AWS_STACK_NAME}-main" WebsiteDistributionId)"
+          [[ -n "$api_url" && "$api_url" != "None" ]] || { echo "::error::CloudFormation output ApiBaseUrl is missing."; exit 1; }
+          [[ -n "$bucket" && "$bucket" != "None" ]] || { echo "::error::CloudFormation output WebsiteBucketName is missing."; exit 1; }
+          [[ -n "$distribution" && "$distribution" != "None" ]] || { echo "::error::CloudFormation output WebsiteDistributionId is missing."; exit 1; }
+          {
+            echo "api_url=$api_url"
+            echo "bucket=$bucket"
+            echo "distribution=$distribution"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build main frontend
+        env:
+          VITE_API_URL: ${{ steps.outputs.outputs.api_url }}
+        run: npm run build --prefix main-frontend
+
+      - name: Publish main frontend
+        env:
+          S3_BUCKET: ${{ steps.outputs.outputs.bucket }}
+          CLOUDFRONT_DISTRIBUTION: ${{ steps.outputs.outputs.distribution }}
+        run: |
+          aws s3 sync main-frontend/dist/ "s3://$S3_BUCKET/" \
+            --delete \
+            --cache-control "public,max-age=0,must-revalidate"
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION" \
+            --paths "/*"
