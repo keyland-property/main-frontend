@@ -12,8 +12,8 @@ const contactDetails = [
   {
     icon: Mail,
     label: "Email",
-    value: "diaspora@keyland.lk",
-    href: "mailto:diaspora@keyland.lk",
+    value: "info@keylandproperties.lk",
+    href: "mailto:info@keylandproperties.lk",
   },
   {
     icon: MapPin,

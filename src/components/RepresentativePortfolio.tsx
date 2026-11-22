@@ -1,23 +1,84 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowUpRight, BadgeCheck, MapPin } from "lucide-react";
-import { getPortfolioContent, type PortfolioListing } from "../api/contentApi";
+import type { PortfolioListing } from "../api/contentApi";
 import SectionHeading from "./SectionHeading";
+
+// Restore when the portfolio API is ready:
+// import { useEffect } from "react";
+// import { getPortfolioContent } from "../api/contentApi";
 
 const filters = ["All properties", "For Sale", "Under Management", "For Development"] as const;
 const currencyFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
+const sampleItems: PortfolioListing[] = [
+  {
+    id: "sample-colombo-villa",
+    name: "Colombo Garden Residence",
+    location: "Colombo 07 · Colombo South",
+    status: "For Sale",
+    badge: "Sample listing",
+    description: "A spacious city residence close to Colombo's leading schools, parks, and business districts.",
+    image: "/keyland-hero-residence.png",
+    prices: { LKR: 125_000_000, USD: 405_000, CAD: 550_000 },
+    priceCaption: "Illustrative guide price",
+    compliance: "Sample data",
+    specs: { beds: "4 Bed", baths: "3 Bath", perches: "18 Perches", sqft: "3,600 SqFt", last: "Residence", lastIcon: "roof" },
+    cta: "Enquire",
+    ctaIcon: "calendar",
+    priority: 1,
+    region: "Colombo South",
+    type: "Villa",
+  },
+  {
+    id: "sample-kotte-residence",
+    name: "Kotte Lakefront Residence",
+    location: "Ethul Kotte · Kotte",
+    status: "Under Management",
+    badge: "Sample listing",
+    description: "A contemporary managed home with green views and convenient access to Colombo.",
+    image: "/keyland-hero-residence.png",
+    prices: { LKR: 92_000_000, USD: 298_000, CAD: 405_000 },
+    priceCaption: "Illustrative guide price",
+    compliance: "Sample data",
+    specs: { beds: "3 Bed", baths: "3 Bath", perches: "8 Perches", sqft: "2,400 SqFt", last: "Managed", lastIcon: "waves" },
+    cta: "Enquire",
+    ctaIcon: "calendar",
+    priority: 2,
+    region: "Kotte",
+    type: "Apartment",
+  },
+  {
+    id: "sample-gothatuwa-land",
+    name: "Gothatuwa Development Land",
+    location: "Gothatuwa · Colombo South",
+    status: "For Development",
+    badge: "Sample listing",
+    description: "A development opportunity near established residential and commercial amenities.",
+    image: "/keyland-hero-residence.png",
+    prices: { LKR: 61_600_000, USD: 204_000, CAD: 275_000 },
+    priceCaption: "Illustrative guide price",
+    compliance: "Sample data",
+    specs: { perches: "22 Perches", sqft: "9,600 SqFt", last: "Development land", lastIcon: "building" },
+    cta: "Enquire",
+    ctaIcon: "building",
+    priority: 3,
+    region: "Gothatuwa",
+    type: "Commercial Land",
+  },
+];
+
 export default function RepresentativePortfolio() {
-  const [items, setItems] = useState<PortfolioListing[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>(filters[0]);
-  const [error, setError] = useState("");
 
-  useEffect(() => {
-    getPortfolioContent()
-      .then(setItems)
-      .catch(() => setError("Portfolio listings are temporarily unavailable."));
-  }, []);
+  // Restore backend integration when portfolio data is ready:
+  // const [items, setItems] = useState<PortfolioListing[]>([]);
+  // useEffect(() => {
+  //   getPortfolioContent().then(setItems).catch((error: Error) => {
+  //     console.error("Could not load portfolio listings.", error);
+  //   });
+  // }, []);
 
-  const visibleItems = items.filter((item) => activeFilter === filters[0] || item.status === activeFilter);
+  const visibleItems = sampleItems.filter((item) => activeFilter === filters[0] || item.status === activeFilter);
 
   return (
     <section id="curated-portfolio" className="bg-white py-14 sm:py-16">
@@ -45,9 +106,7 @@ export default function RepresentativePortfolio() {
           </div>
         </div>
 
-        {error ? (
-          <p role="alert" className="mt-7 border border-red-200 bg-white p-5 text-sm text-red-700">{error}</p>
-        ) : visibleItems.length ? (
+        {visibleItems.length ? (
           <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {visibleItems.map((item) => (
               <article key={item.id} className="group flex flex-col border border-slate-200 bg-white transition-shadow hover:shadow-card">
